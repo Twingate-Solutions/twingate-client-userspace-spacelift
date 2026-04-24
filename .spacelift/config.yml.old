@@ -1,0 +1,11 @@
+version: "2"
+stack_defaults:
+  runner_image: gberntg/spacelift-twingate:latest
+  before_init:
+    - "printenv TWINGATE_SERVICE_KEY > /etc/twingate/service_key.json"
+    - "echo service key written"
+    - "bash -c 'twingated --http-proxy 0.0.0.0:9999 --tun off &'"
+    - "sleep 15"
+    - "bash -c 'proxytunnel --standalone=5432 --proxy=127.0.0.1:9999 --dest=$DB_DEST &'"
+    - "sleep 3"
+    - "pg_isready -h 127.0.0.1 -p 5432 || echo tunnel not ready"

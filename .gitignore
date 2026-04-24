@@ -1,0 +1,12 @@
+# Secrets
+service_key.json
+.env
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+.terraform.lock.hcl
+
+# OS
+.DS_Store
