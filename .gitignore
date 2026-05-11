@@ -1,4 +1,4 @@
-# Secrets
+# Secrets (service_key.json kept as safety net in case someone creates one locally)
 service_key.json
 .env
 
