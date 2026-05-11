@@ -16,9 +16,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 
-# Pre-create the Twingate IPC socket directory for the spacelift user.
-# Note: /etc/twingate is no longer needed — twingated reads the service key
-# from the TWINGATE_SERVICE_KEY environment variable natively.
+# twingated needs /run/user/1983/twingate for its IPC socket
 RUN mkdir -p /run/user/1983 && chown 1983:1983 /run/user/1983
 
 # Bake the init script into the image
