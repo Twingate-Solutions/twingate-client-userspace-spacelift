@@ -1,0 +1,67 @@
+###############################################################################
+# Twingate Userspace Proxy + Proxytunnel -> DB (local validation)
+#
+# Usage:
+#   1. Copy .env.example to .env and fill in your details
+#   2. docker compose up
+#
+# Docs: https://www.twingate.com/docs/linux-userspace-networking
+###############################################################################
+
+services:
+
+  # Twingate headless client — userspace HTTP proxy, no root/TUN/NET_ADMIN
+  twingate-client:
+    image: twingate/client:latest
+    command: --http-proxy 0.0.0.0:9999 --tun off
+    environment:
+      TWINGATE_SERVICE_KEY: ${TWINGATE_SERVICE_KEY}
+
+  # proxytunnel: bridges TCP through the Twingate HTTP proxy
+  db-local:
+    image: debian:bookworm-slim
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        apt-get update -qq && apt-get install -y -qq proxytunnel > /dev/null 2>&1
+        echo "proxytunnel: :${TUNNEL_LOCAL_PORT:-5432} -> twingate-client:9999 -> ${TUNNEL_DEST}"
+        exec proxytunnel \
+          --standalone=${TUNNEL_LOCAL_PORT:-5432} \
+          --proxy=twingate-client:9999 \
+          --dest=${TUNNEL_DEST}
+    environment:
+      TUNNEL_DEST: ${TUNNEL_DEST:-db.internal:5432}
+      TUNNEL_LOCAL_PORT: ${TUNNEL_LOCAL_PORT:-5432}
+    depends_on:
+      - twingate-client
+    ports:
+      - "${TUNNEL_LOCAL_PORT:-5432}:${TUNNEL_LOCAL_PORT:-5432}"
+
+  # psql smoke test (optional — runs a quick query then exits)
+  app:
+    image: postgres:16-alpine
+    entrypoint: /bin/sh
+    command:
+      - -c
+      - |
+        echo "Waiting for tunnel..."
+        sleep 15
+        for i in $(seq 1 20); do
+          pg_isready -h db-local -p ${TUNNEL_LOCAL_PORT:-5432} -U "${DB_USER}" 2>/dev/null && break
+          echo "  retry $i/20..."
+          sleep 3
+        done
+        echo ""
+        PGPASSWORD="${DB_PASSWORD}" psql \
+          -h db-local -p ${TUNNEL_LOCAL_PORT:-5432} \
+          -U "${DB_USER}" \
+          -d "${DB_NAME}" \
+          -c "SELECT 1 AS connection_ok, now() AS ts, version();"
+    environment:
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_NAME: ${DB_NAME}
+      TUNNEL_LOCAL_PORT: ${TUNNEL_LOCAL_PORT:-5432}
+    depends_on:
+      - db-local

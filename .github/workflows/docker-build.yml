@@ -4,12 +4,14 @@ on:
   pull_request:
     paths:
       - "Dockerfile"
+      - "init.sh"
       - ".github/workflows/docker-build.yml"
   push:
     branches:
       - main
     paths:
       - "Dockerfile"
+      - "init.sh"
       - ".github/workflows/docker-build.yml"
 
 env:
